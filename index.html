@@ -2,204 +2,304 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RSI MolKit Viewer</title>
   <link rel="icon" type="image/png" href="rgfavicon.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="./3Dmol-min-misaxyz.js"></script>
 
   <style>
-    /* === Fonts === */
-    @font-face{font-family:"Inter";src:url("Inter-Regular.woff2") format("woff2");font-weight:400;font-display:swap}
-    @font-face{font-family:"Inter";src:url("Inter-SemiBold.woff2") format("woff2");font-weight:600;font-display:swap}
-    @font-face{font-family:"Inter";src:url("Inter-Bold.woff2") format("woff2");font-weight:700;font-display:swap}
-
-    /* === Theme === */
-    :root{
-      --color-bg:#f0f4ff;
-      --color-bg-grad-start:#d9f5f5;
-      --color-bg-grad-end:#f9fafb;
-      --color-card:rgba(255,255,255,.65);
-      --color-accent:#008081;
-      --color-accent-muted:#d5f0f0;
-      --color-text:#1f2937;
-      --color-muted:#6b7280;
-      --radius:8px;
-      --shadow:0 10px 25px rgba(0,0,0,.07);
-      --sidebar-width:280px;
-      --color-n:#3b82f6;
-      --color-fluoride:#00008b;
-      --color-metal:orange;
+    :root {
+      --primary: #006A6A; --on-primary: #ffffff; --primary-container: #9cf1f1; --on-primary-container: #002020;
+      --sec-container: #cce8e8; --on-sec-container: #051f1f;
+      --surface: #f4fbfb; --surface-container: #eff5f5; --surface-low: #ffffff;
+      --on-surface: #161d1d; --on-surface-var: #3f4949; --outline: #6f7979; --error: #ba1a1a;
+      --tertiary-container: #dbece0; --warn-container: #ffdbcf; --on-warn-container: #5d1900;
+      --chem-n: #3050F8; --chem-f: #00008b; --chem-metal: #FF8C00;
+      --sb-width: 320px; --gap: 16px; --rad-l: 24px; --rad-full: 9999px;
     }
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Roboto', sans-serif; background: var(--surface); color: var(--on-surface); height: 100vh; overflow: hidden; display: flex; }
+    
+    .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 22px; }
+    
+    /* Sidebar */
+    #sidebar {
+      position: fixed; top: var(--gap); left: var(--gap); bottom: var(--gap); width: var(--sb-width);
+      background: var(--surface-container); border-radius: var(--rad-l); display: flex; flex-direction: column;
+      z-index: 20; padding: 16px; box-shadow: 0 0 0 1px rgba(0,0,0,0.03), 4px 0 12px rgba(0,0,0,0.05);
+    }
+    .brand-section { padding: 8px 0 24px; display: flex; justify-content: center; flex-shrink: 0; }
+    #rgLogo { height: 48px; width: auto; object-fit: contain; }
+    
+    /* Input & FAB */
+    .fab-container { padding-bottom: 20px; flex-shrink: 0; }
+    #fileBtn {
+      width: 100%; height: 56px; border-radius: var(--rad-l); border: none; background: var(--primary-container);
+      color: var(--on-primary-container); font: 500 16px 'Roboto'; display: flex; align-items: center; justify-content: center;
+      gap: 12px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #fileBtn:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
-    /* === Reset & Base === */
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:"Inter","Segoe UI",Arial,sans-serif}
-    html,body{height:100%;overflow-x:hidden}
-    body{zoom:.95;display:flex;flex-direction:column;color:var(--color-text);background:var(--color-bg)}
-    body::before{content:"";position:fixed;inset:0;background:linear-gradient(130deg,var(--color-bg-grad-start) 0%,var(--color-bg-grad-end) 70%);z-index:-2}
-    main{flex:1;display:flex;overflow:hidden;animation:fadeIn .6s ease .1s both}
+    /* List */
+    .list-header { padding: 0 12px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: var(--outline); flex-shrink: 0; }
+    
+    #molList { 
+      flex: 1; 
+      overflow-y: auto; 
+      overflow-x: hidden; /* Fix 1: Prevents horizontal scrollbar, forces ellipsis */
+      display: flex; flex-direction: column; gap: 4px; padding-right: 4px; scroll-behavior: smooth; 
+    }
+    /* Fix 1: Style both vertical and horizontal bars same way */
+    #molList::-webkit-scrollbar { width: 6px; height: 6px; } 
+    #molList::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 99px; }
+    
+    .mol-item {
+      position: relative; width: 100%; height: 50px; min-height: 50px; padding: 0 16px; border: none; background: transparent;
+      border-radius: var(--rad-full); text-align: left; font: 500 14px 'Roboto'; color: var(--on-surface-var);
+      cursor: pointer; display: flex; align-items: center; white-space: nowrap; transition: background-color 0.2s; flex-shrink: 0;
+      overflow: hidden; /* Fix 2: Clips the ripple effect to the button shape */
+    }
+    .mol-item:hover { background-color: rgba(0, 106, 106, 0.08); }
+    .mol-item.active { background-color: var(--sec-container); color: var(--on-sec-container); font-weight: 700; }
+    .mol-idx { width: 24px; opacity: 0.5; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    .mol-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; }
 
-    /* === Sidebar === */
-    #sidebar{position:relative;width:var(--sidebar-width);min-width:280px;max-width:560px;display:flex;flex-direction:column;backdrop-filter:blur(14px) saturate(160%);background:var(--color-card);box-shadow:var(--shadow);border-right:1px solid rgba(0,0,0,.05);transition:width .25s ease}
-    #toggleSidebar{position:absolute;top:10px;right:10px;width:32px;height:32px;border:none;border-radius:var(--radius);background:var(--color-accent);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 6px rgba(0,0,0,.12);transition:transform .18s ease,background .18s ease}
-    #toggleSidebar:hover{background:#006e6f;transform:scale(1.05)}
-    #toggleSidebar .arrow{display:inline-block;transform:rotate(45deg);transition:transform .25s ease;pointer-events:none}
-    #toggleSidebar.expanded .arrow{transform:rotate(-45deg)}
+    /* Controls */
+    #sidebar-footer-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+    #controls { display: flex; gap: 8px; }
+    .ctrl-btn {
+      flex: 1; height: 44px; border-radius: var(--rad-full); border: 1px solid var(--outline); background: transparent;
+      color: var(--on-surface); font-weight: 500; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 8px; position: relative; overflow: hidden; /* Fix 2: Clips ripple here too */
+    }
+    .ctrl-btn.active-mode { background: var(--on-surface); color: var(--surface); border-color: transparent; }
+    .sidebar-copyright { text-align: center; font-size: 11px; color: var(--outline); font-weight: 500; }
 
-    /* === File Section === */
-    #fileSection{padding:16px 10px;border-bottom:1px solid rgba(0,0,0,.06)}
-    #rgLogo{display:block;margin:0 0 8px;width:140px;max-width:80%;height:auto}
-    #fileBtn{width:100%;padding:10px 18px;font-weight:600;font-size:15px;border:none;border-radius:var(--radius);background:var(--color-accent);color:#fff;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
-    #fileBtn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 6px 14px rgba(0,128,129,.25)}
-    #fileBtn:active{transform:translateY(0) scale(1)}
+    /* Viewer */
+    main { margin: var(--gap) var(--gap) var(--gap) calc(var(--sb-width) + (var(--gap)*2)); height: calc(100vh - (var(--gap)*2)); flex: 1; position: relative; display: flex; flex-direction: column; }
+    #viewerContainer { width: 100%; height: 100%; position: relative; background: #fff; border-radius: var(--rad-l); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transform: translateZ(0); }
+    #viewer { width: 100%; height: 100%; outline: none; }
 
-    /* === Molecule List === */
-    #sidebar header{padding:18px 16px;font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--color-text)}
-    #molList{flex:1;padding:0 10px 10px;overflow-y:auto;scroll-behavior:smooth}
-    #molList button{width:100%;text-align:left;background:transparent;border:none;padding:12px 14px;border-radius:var(--radius);font-size:15px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s ease,transform .18s ease,box-shadow .18s ease}
-    #molList button:hover{background:var(--color-accent-muted);transform:translateY(-1.5px) scale(1.02);box-shadow:0 5px 12px rgba(0,128,129,.18)}
-    #molList button:active{transform:translateY(0) scale(1)}
-    #molList button.active{background:var(--color-accent);color:#fff}
-    #molList button+button{margin-top:6px}
-    #molList button.error{color:#b91c1c;opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
-    #molList button.error:hover{background:transparent}
-    #molList .index{font-weight:700;margin-right:4px}
-    #molList::-webkit-scrollbar{width:6px}
-    #molList::-webkit-scrollbar-track{background:transparent}
-    #molList::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:3px}
+    /* Chips */
+    #infoPills { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; pointer-events: none; width: 90%; }
+    .chip {
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      padding: 0 20px; height: 36px; border-radius: var(--rad-full); display: flex; align-items: center;
+      font: 500 14px 'Roboto'; color: var(--on-surface); box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255,255,255,0.5); pointer-events: auto;
+    }
+    .chip-details { background: var(--tertiary-container); color: var(--on-sec-container); border: none; }
+    .chip-warning { background: var(--warn-container); color: var(--on-warn-container); border: none; }
 
-    /* === Controls === */
-    #controls{display:flex;flex-direction:column;gap:10px;padding:16px 10px;border-top:1px solid rgba(0,0,0,.06)}
-    #controls button{width:100%;padding:10px 18px;font-size:15px;border:none;border-radius:var(--radius);font-weight:600;background:#e5e7eb;color:var(--color-text);cursor:pointer;transition:background .15s ease,transform .18s ease,box-shadow .18s ease}
-    #controls button:hover{background:#d1d5db;transform:translateY(-1.5px) scale(1.02);box-shadow:0 5px 12px rgba(0,128,129,.18)}
-    #controls button:active{transform:translateY(0) scale(1)}
-    #controls button.active{background:var(--color-accent);color:#fff}
-
-    /* === Viewer === */
-    #viewerContainer{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center}
-    #viewer{width:100%;height:100%}
-    #viewer canvas{will-change:transform}
-
-    /* === Info Pills === */
-    #infoPills{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
-    .pill{background:rgba(255,255,255,.8);backdrop-filter:blur(8px);padding:6px 14px;border-radius:var(--radius);font-weight:600;font-size:15px;color:var(--color-text);box-shadow:0 4px 10px rgba(0,0,0,.06);pointer-events:none;max-width:45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #detailsLabel{background:var(--color-accent-muted)}
-
-    /* === Footer === */
-    footer{margin-top:auto;padding:8px 16px;font-size:13px;text-align:center;color:var(--color-muted)}
-
-    /* === Animations === */
-    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    /* Ripple */
+    .mol-item::after, #fileBtn::after, .ctrl-btn::after {
+      content: ""; position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; opacity: 0;
+      background: radial-gradient(circle, rgba(0,0,0,0.1) 10%, transparent 10.01%) no-repeat 50%;
+      transform: scale(10); transition: transform .5s, opacity 1s;
+    }
+    .mol-item:active::after, #fileBtn:active::after, .ctrl-btn:active::after { transform: scale(0); opacity: .2; transition: 0s; }
   </style>
 </head>
 <body>
-  <main>
-    <aside id="sidebar">
-      <button id="toggleSidebar" title="Expand/Collapse"><span class="arrow">⟷</span></button>
-      <div id="fileSection">
-        <img id="rgLogo" src="rglogo.png" alt="Roithová Group logo">
-        <input type="file" id="fileInput" accept=".xyz" hidden>
-        <button id="fileBtn">Open .xyz</button>
-      </div>
-      <header>Molecules</header>
-      <div id="molList"></div>
-      <div id="controls">
-        <button id="styleBtn">Style: Stick</button>
-        <button id="labelMode">Labels: Off</button>
-      </div>
-    </aside>
 
+  <aside id="sidebar">
+    <div class="brand-section">
+      <img id="rgLogo" src="rglogo.png" alt="RG Logo" onerror="this.style.opacity='0.3'"> 
+    </div>
+    <div class="fab-container">
+      <button id="fileBtn"><span class="material-symbols-rounded">folder_open</span><span>Open .xyz</span></button>
+      <input type="file" id="fileInput" accept=".xyz" hidden>
+    </div>
+    <div class="list-header">Loaded molecules</div>
+    <div id="molList"></div>
+    <div id="sidebar-footer-group">
+      <div id="controls">
+        <button id="styleBtn" class="ctrl-btn"><span class="material-symbols-rounded">grain</span><span id="styleTxt">Stick</span></button>
+        <button id="labelBtn" class="ctrl-btn"><span class="material-symbols-rounded">label</span><span id="labelTxt">Off</span></button>
+      </div>
+      <div class="sidebar-copyright">RSI MolKit Viewer v3.0 · Roithová Group 2025</div>
+    </div>
+  </aside>
+
+  <main>
     <section id="viewerContainer">
       <div id="viewer"></div>
       <div id="infoPills">
-        <div id="formulaLabel" class="pill"></div>
-        <div id="detailsLabel" class="pill" style="display:none"></div>
+        <div id="formulaLabel" class="chip" style="display:none"></div>
+        <div id="detailsLabel" class="chip chip-details" style="display:none"></div>
       </div>
     </section>
   </main>
-  <footer>RSI MolKit Viewer v2.0 · Roithová Group 2025</footer>
 
   <script>
-    /* === Helpers === */
-    const SYM=["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
-    const METALS=["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"];
+    const $ = (id) => document.getElementById(id);
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    
+    // Constants
+    const DEFAULT_MOLS = [
+      { name: "Water", xyz: "3\nWater\nO 0.000000 0.000000 0.000000\nH 0.758602 0.000000 0.504284\nH 0.758602 0.000000 -0.504284" },
+      { name: "Methane", xyz: "5\nMethane\nC 0.000000 0.000000 0.000000\nH 0.629118 0.629118 0.629118\nH -0.629118 -0.629118 0.629118\nH 0.629118 -0.629118 -0.629118\nH -0.629118 0.629118 -0.629118" },
+      { name: "Benzene", xyz: "12\nBenzene\nC -1.2131 -0.6884 0.0000\nC -1.2028 0.7064 0.0001\nC -0.0103 -1.3948 0.0000\nC 0.0104 1.3948 -0.0001\nC 1.2028 -0.7063 0.0000\nC 1.2131 0.6884 0.0000\nH -2.1577 -1.2244 0.0000\nH -2.1393 1.2564 0.0001\nH -0.0184 -2.4809 -0.0001\nH 0.0184 2.4808 -0.0002\nH 2.1394 -1.2563 0.0001\nH 2.1577 1.2245 0.0001" },
+      { name: "Caffeine", xyz: "24\nCaffeine\nN 1.5808 0.7027 -0.2279\nC 1.7062 -0.7374 -0.2126\nN 0.5340 -1.5671 -0.3503\nC 0.3231 1.3600 0.0274\nC -0.8123 0.4553 0.0817\nC -0.6967 -0.9322 -0.0662\nN -2.1886 0.6990 0.2783\nC -2.8512 -0.5205 0.2532\nN -1.9537 -1.5188 0.0426\nC 0.6568 -3.0274 -0.1675\nO 2.8136 -1.2558 -0.1693\nO 0.2849 2.5744 0.1591\nC -2.8096 2.0031 0.5032\nC 2.8301 1.5004 -0.1968\nH -3.9271 -0.6787 0.3762\nH 1.4823 -3.4046 -0.7865\nH -0.2708 -3.5204 -0.4868\nH 0.8567 -3.2990 0.8788\nH -2.4123 2.7478 -0.2017\nH -2.6042 2.3621 1.5221\nH -3.8973 1.9344 0.3695\nH 3.5959 1.0333 -0.8314\nH 3.2249 1.5791 0.8255\nH 2.6431 2.5130 -0.5793" }
+    ];
+    const SYM = ["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"];
+    const METALS = new Set(["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"]);
+    const STYLES = ["Stick", "Ball & Stick"];
+    const LABELS = ["Off", "Atom", "Index"];
 
-    const css=(v)=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    // Viewer & State
+    const viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
+    if(viewer.setFog) viewer.setFog(0.4, 1);
+    
+    let mols = [], current = -1, labelMode = 0, styleMode = 0;
 
-    /* === DOM === */
-    const fileBtn=document.getElementById("fileBtn"),fileInput=document.getElementById("fileInput"),molList=document.getElementById("molList"),labelBtn=document.getElementById("labelMode"),styleBtn=document.getElementById("styleBtn"),formulaLabel=document.getElementById("formulaLabel"),detailsLabel=document.getElementById("detailsLabel"),toggleBtn=document.getElementById("toggleSidebar"),sidebar=document.getElementById("sidebar");
+    // Events
+    $("fileBtn").onclick = () => $("fileInput").click();
+    $("fileInput").onchange = (e) => {
+      if(!e.target.files[0]) return;
+      const r = new FileReader();
+      r.onload = ({target}) => {
+        const parsed = parseXYZ(target.result);
+        if(parsed.length) { mols = parsed; sortMols(); buildList(); }
+      };
+      r.readAsText(e.target.files[0]);
+    };
 
-    /* === Viewer === */
-    const viewer=$3Dmol.createViewer("viewer",{backgroundColor:"white"});
-    viewer.enableFog(true);if(viewer.setFog)viewer.setFog(.3,1);
+    $("styleBtn").onclick = () => {
+      styleMode = (styleMode + 1) % 2;
+      $("styleTxt").textContent = STYLES[styleMode];
+      if(current !== -1) showMol(current);
+    };
 
-    /* === Sidebar Toggle === */
-    let expanded=false;
-    toggleBtn.addEventListener("click",()=>{expanded=!expanded;sidebar.style.setProperty("--sidebar-width",expanded?"560px":"280px");toggleBtn.classList.toggle("expanded",expanded);viewer.resize()});
+    $("labelBtn").onclick = () => {
+      labelMode = (labelMode + 1) % 3;
+      $("labelTxt").textContent = LABELS[labelMode];
+      $("labelBtn").classList.toggle("active-mode", labelMode !== 0);
+      if(current !== -1) showMol(current);
+    };
 
-    /* === State === */
-    let mols=[],current=-1,labelMode=0,styleMode=0;
-    const STYLE=["stick","ballstick"],STYLE_TXT=["Style: Stick","Style: Ball & Stick"],MODE_TXT=["Labels: Off","Labels: Atom","Labels: Number"];
+    // Logic
+    function parseXYZ(txt) {
+      const lines = txt.replace(/\r/g, "").split("\n");
+      const out = [];
+      let i = 0, count = 0;
+      const rx = /^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)/i;
 
-    const updStyleTxt=()=>styleBtn.textContent=STYLE_TXT[styleMode];
-    const updModeTxt=()=>labelBtn.textContent=MODE_TXT[labelMode];
-    updStyleTxt();updModeTxt();
-
-    /* === File Handling === */
-    fileBtn.onclick=()=>fileInput.click();
-    fileInput.onchange=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=({target})=>{mols=parseXYZ(target.result);buildList()};r.readAsText(f)};
-
-    /* === Sorting helper === */
-    function sortMolsByE0K() {
-      if (mols.length && mols.every(m => m.details && Number.isFinite(m.details.e0k))) {
-        mols.sort((a, b) => a.details.e0k - b.details.e0k);
+      while(i < lines.length) {
+        if(!/^\d+$/.test(lines[i]?.trim())) { i++; continue; }
+        const start = i, n = +lines[i].trim();
+        const header = (lines[i+1]||"").trim();
+        let obj = { header, displayName: header || `Molecule ${++count}`, atoms: [], error: false };
+        
+        try {
+          if(n <= 0 || i + 2 + n > lines.length) throw new Error("Incomplete block");
+          const xyzArr = [];
+          for(let j=0; j<n; j++) {
+            const p = lines[i+2+j].trim().split(/\s+/);
+            if(p.length<4) throw new Error("Malformed line");
+            let el = /^\d+$/.test(p[0]) ? SYM[+p[0]]||"X" : p[0];
+            obj.atoms.push({ elem: el, x: +p[1], y: +p[2], z: +p[3] });
+            xyzArr.push(`${el} ${p[1]} ${p[2]} ${p[3]}`);
+          }
+          const m = header.match(rx);
+          if(m) {
+            obj.details = { name: m[1].trim(), ehf: +m[2], e0k: +m[3], imag: +m[4] };
+            obj.displayName = obj.details.name;
+          }
+          obj.xyz = `${n}\n${header}\n${xyzArr.join("\n")}\n`;
+          i += n + 2;
+        } catch(e) {
+          obj.error = true; obj.errorMsg = e.message;
+          i = start + 1;
+        }
+        out.push(obj);
       }
+      return out;
     }
 
-    /* === XYZ Parser === */
-    function parseXYZ(txt){const ln=txt.replace(/\r/g,"").split("\n"),out=[];let i=0,cnt=0;const detR=/^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)\s*\|\s*Charge=(\d+)\s*\|\s*Multiplicity=(\d+)/i;const isCnt=(k)=>k<ln.length&&/^\d+$/.test(ln[k].trim())&&+ln[k]>0&&k+2+ +ln[k]<=ln.length;const seek=()=>{while(i<ln.length&&!isCnt(i))i++};
-      while(i<ln.length){seek();if(i>=ln.length)break;const start=i,n=+ln[i].trim(),header=(ln[i+1]||"").trim();cnt++;let obj={header,displayName:header||`Molecule ${cnt}`,error:false};try{if(n<=0||i+2+n>ln.length)throw new Error("Invalid block");const atoms=[],xyz=[];for(let j=0;j<n;j++){const p=ln[i+2+j].trim().split(/\s+/);if(p.length<4)throw new Error("Bad atom line");let el=p[0];if(/^\d+$/.test(el))el=SYM[+el]||"X";const x=+p[1],y=+p[2],z=+p[3];atoms.push({elem:el,x,y,z});xyz.push(`${el} ${x} ${y} ${z}`)}
-        const m=header.match(detR);let det=null,name=header;if(m)det={name:m[1].trim(),ehf:+m[2],e0k:+m[3],imag:+m[4],charge:+m[5],mult:+m[6]},name=det.name;
-        obj={header,displayName:name,details:det,atoms,xyz:`${n}\n${header}\n${xyz.join("\n")}\n`,error:false};i=start+n+2
-      }catch(err){obj.error=true;obj.errorMsg=err.message||String(err);i=start+1;while(i<ln.length&&!isCnt(i))i++}out.push(obj)}return out}
+    function sortMols() {
+      mols.sort((a,b) => (a.details?.e0k ?? 9e5) - (b.details?.e0k ?? 9e5));
+    }
 
-    /* === File Handling === */
-    fileBtn.onclick = () => fileInput.click();
-    fileInput.onchange = (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      const r = new FileReader();
-      r.onload = ({ target }) => {
-        mols = parseXYZ(target.result);
-        sortMolsByE0K();      // ← insert the sort here, before building the list
-        buildList();
-      };
-      r.readAsText(f);
-    };
-    
-    /* === UI Builders === */
-    function buildList(){molList.innerHTML="";let first=-1;mols.forEach((m,idx)=>{const btn=document.createElement("button");btn.innerHTML=`<span class="index">${idx+1}.</span> ${m.displayName}${m.error?" ⚠️":""}`;if(m.error){btn.disabled=true;btn.classList.add("error");btn.title=m.errorMsg}else{btn.onclick=()=>showMol(idx);if(first===-1)first=idx}molList.appendChild(btn)});if(first!==-1)showMol(first)}
+    function buildList() {
+      const list = $("molList");
+      list.innerHTML = "";
+      let first = -1;
+      mols.forEach((m, i) => {
+        const btn = document.createElement("button");
+        btn.className = "mol-item";
+        btn.title = m.error ? m.errorMsg : m.displayName;
+        const icon = m.error ? `<span class="material-symbols-rounded mol-idx" style="color:var(--error)">warning</span>` : `<span class="mol-idx">${i+1}.</span>`;
+        btn.innerHTML = `${icon} <span class="mol-name">${m.displayName}</span>`;
+        if(!m.error) {
+          btn.onclick = () => showMol(i);
+          if(first === -1) first = i;
+        }
+        list.appendChild(btn);
+      });
+      if(first !== -1) showMol(first);
+    }
 
-    /* === Viewer Rendering === */
-    function showMol(idx){if(idx<0||idx>=mols.length||mols[idx].error)return;current=idx;[...molList.children].forEach((b,i)=>b.classList.toggle("active",i===idx));viewer.removeAllLabels();viewer.removeAllModels();const mdl=viewer.addModel(mols[idx].xyz,"xyz");applyStyle(mdl);viewer.zoomTo();viewer.render();if(labelMode)requestAnimationFrame(()=>{drawLbls(mdl);viewer.render()});updatePills()}
+    function showMol(idx) {
+      if(!mols[idx] || mols[idx].error) return;
+      current = idx;
+      [...$("molList").children].forEach((b,i) => b.classList.toggle("active", i===idx));
+      
+      viewer.clear(); // Clears models and labels
+      const m = mols[idx];
+      const mdl = viewer.addModel(m.xyz, "xyz");
+      
+      const stick = { radius: 0.12 };
+      mdl.setStyle({}, styleMode === 0 ? { stick } : { stick, sphere: { scale: 0.23 } });
+      if(styleMode === 1) mdl.setStyle({ elem: "H" }, { stick, sphere: { scale: 0.15 } });
 
-    function applyStyle(mdl){if(!mdl)return;const stick={radius:.15},sphere={scale:.25},isStick=STYLE[styleMode]==="stick";mdl.setStyle({},{});if(isStick)mdl.setStyle({},{stick});else{mdl.setStyle({},{stick,sphere});mdl.setStyle({elem:"H"},{stick,sphere:{scale:.15}})}
-      const clr=(sel,col)=>isStick?mdl.setStyle(sel,{stick:{...stick,color:col}}):mdl.setStyle(sel,{stick:{...stick,color:col},sphere:{...sphere,color:col}});
-      clr({elem:"N"},css("--color-n"));clr({elem:"F"},css("--color-fluoride"));METALS.forEach(e=>clr({elem:e},css("--color-metal")))}
+      const setC = (sel, c) => mdl.setStyle(sel, styleMode === 0 ? {stick:{...stick, color:c}} : {stick:{...stick, color:c}, sphere:{scale:0.23, color:c}});
+      setC({elem:"N"}, css("--chem-n"));
+      setC({elem:"F"}, css("--chem-f"));
+      METALS.forEach(e => setC({elem:e}, css("--chem-metal")));
 
-    styleBtn.onclick=()=>{styleMode=(styleMode+1)%STYLE.length;updStyleTxt();current!==-1&&showMol(current)};
+      viewer.zoomTo();
+      viewer.render();
 
-    function drawLbls(mdl){mdl.selectedAtoms({}).forEach((a,i)=>{const txt=labelMode===2?String(i+1):a.elem;viewer.addLabel(txt,{position:{x:a.x,y:a.y,z:a.z},fontSize:13,fontColor:"#000",bold:true,showBackground:false})})}
-    labelBtn.onclick=()=>{labelMode=(labelMode+1)%3;updModeTxt();current!==-1&&showMol(current)};
+      if(labelMode) {
+        mdl.selectedAtoms({}).forEach((a,i) => viewer.addLabel(labelMode===2 ? String(i+1) : a.elem, {
+            position: {x:a.x, y:a.y, z:a.z}, fontSize:12, fontColor:"#000", backgroundColor:"#fff", backgroundOpacity:0.7, inFront:true, borderThickness:0
+        }));
+        viewer.render();
+      }
+      updateInfo(m);
+    }
 
-    /* === Info Pills === */
-    const updatePills=()=>{const m=mols[current];if(!m){formulaLabel.textContent="";detailsLabel.style.display="none";return}
-      const cnt={},kys=[];m.atoms.forEach(({elem})=>cnt[elem]=(cnt[elem]||0)+1);
-      Object.keys(cnt).sort((a,b)=>{if(a==="C")return-1;if(b==="C")return 1;if(a==="H")return b==="C"?1:-1;if(b==="H")return a==="C"?-1:1;return a.localeCompare(b)}).forEach(k=>kys.push(k+(cnt[k]>1?cnt[k]:"")));
-      formulaLabel.textContent=kys.join(" ");
-      if(m.details){const d=m.details;detailsLabel.textContent=`E(HF) ${d.ehf.toFixed(2)} · E(0K) ${d.e0k.toFixed(2)} · Imag ${d.imag} · Charge ${d.charge} · Multiplicity ${d.mult}`;detailsLabel.style.display="block"}else detailsLabel.style.display="none"};
+    function updateInfo(m) {
+      const fLbl = $("formulaLabel"), dLbl = $("detailsLabel");
+      if(!m) { fLbl.style.display = dLbl.style.display = "none"; return; }
 
-    /* === Resilience === */
-    viewer.getCanvas().addEventListener("webglcontextlost",e=>{e.preventDefault();setTimeout(()=>{viewer.resize();viewer.render()},0)});
-    window.addEventListener("resize",()=>viewer.resize());
+      const cnt = {};
+      m.atoms.forEach(a => cnt[a.elem] = (cnt[a.elem]||0)+1);
+      const txt = Object.keys(cnt).sort((a,b) => a==='C'?-1:b==='C'?1:a==='H'?1:b==='H'?-1:a.localeCompare(b))
+        .map(k => k + (cnt[k]>1 ? `<sub>${cnt[k]}</sub>` : "")).join("");
+      
+      fLbl.innerHTML = txt; fLbl.style.display = "flex";
+
+      if(m.isDefault) {
+        dLbl.className = "chip chip-warning";
+        dLbl.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px; margin-right:6px">info</span> Viewing Default Data`;
+        dLbl.style.display = "flex";
+      } else if(m.details) {
+        dLbl.className = "chip chip-details";
+        dLbl.innerHTML = `<span style="opacity:0.7">E(HF):</span>&nbsp;${m.details.ehf.toFixed(2)}&nbsp;|&nbsp;<span style="opacity:0.7">E(0K):</span>&nbsp;${m.details.e0k.toFixed(2)}&nbsp;|&nbsp;<span style="opacity:0.7">Imag:</span>&nbsp;${m.details.imag}`;
+        dLbl.style.display = "flex";
+      } else { dLbl.style.display = "none"; }
+    }
+
+    // Init
+    window.onresize = () => viewer.resize();
+    mols = DEFAULT_MOLS.map(d => { const p = parseXYZ(d.xyz)[0]; p.displayName = d.name; p.isDefault = true; return p; });
+    buildList();
+
   </script>
 </body>
 </html>
