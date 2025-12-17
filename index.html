@@ -49,10 +49,9 @@
     #molList { 
       flex: 1; 
       overflow-y: auto; 
-      overflow-x: hidden; /* Fix 1: Prevents horizontal scrollbar, forces ellipsis */
+      overflow-x: hidden; 
       display: flex; flex-direction: column; gap: 4px; padding-right: 4px; scroll-behavior: smooth; 
     }
-    /* Fix 1: Style both vertical and horizontal bars same way */
     #molList::-webkit-scrollbar { width: 6px; height: 6px; } 
     #molList::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 99px; }
     
@@ -60,7 +59,7 @@
       position: relative; width: 100%; height: 50px; min-height: 50px; padding: 0 16px; border: none; background: transparent;
       border-radius: var(--rad-full); text-align: left; font: 500 14px 'Roboto'; color: var(--on-surface-var);
       cursor: pointer; display: flex; align-items: center; white-space: nowrap; transition: background-color 0.2s; flex-shrink: 0;
-      overflow: hidden; /* Fix 2: Clips the ripple effect to the button shape */
+      overflow: hidden;
     }
     .mol-item:hover { background-color: rgba(0, 106, 106, 0.08); }
     .mol-item.active { background-color: var(--sec-container); color: var(--on-sec-container); font-weight: 700; }
@@ -73,7 +72,7 @@
     .ctrl-btn {
       flex: 1; height: 44px; border-radius: var(--rad-full); border: 1px solid var(--outline); background: transparent;
       color: var(--on-surface); font-weight: 500; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      gap: 8px; position: relative; overflow: hidden; /* Fix 2: Clips ripple here too */
+      gap: 8px; position: relative; overflow: hidden;
     }
     .ctrl-btn.active-mode { background: var(--on-surface); color: var(--surface); border-color: transparent; }
     .sidebar-copyright { text-align: center; font-size: 11px; color: var(--outline); font-weight: 500; }
@@ -135,170 +134,337 @@
   </main>
 
   <script>
-    const $ = (id) => document.getElementById(id);
-    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-    
-    // Constants
-    const DEFAULT_MOLS = [
-      { name: "Water", xyz: "3\nWater\nO 0.000000 0.000000 0.000000\nH 0.758602 0.000000 0.504284\nH 0.758602 0.000000 -0.504284" },
-      { name: "Methane", xyz: "5\nMethane\nC 0.000000 0.000000 0.000000\nH 0.629118 0.629118 0.629118\nH -0.629118 -0.629118 0.629118\nH 0.629118 -0.629118 -0.629118\nH -0.629118 0.629118 -0.629118" },
-      { name: "Benzene", xyz: "12\nBenzene\nC -1.2131 -0.6884 0.0000\nC -1.2028 0.7064 0.0001\nC -0.0103 -1.3948 0.0000\nC 0.0104 1.3948 -0.0001\nC 1.2028 -0.7063 0.0000\nC 1.2131 0.6884 0.0000\nH -2.1577 -1.2244 0.0000\nH -2.1393 1.2564 0.0001\nH -0.0184 -2.4809 -0.0001\nH 0.0184 2.4808 -0.0002\nH 2.1394 -1.2563 0.0001\nH 2.1577 1.2245 0.0001" },
-      { name: "Caffeine", xyz: "24\nCaffeine\nN 1.5808 0.7027 -0.2279\nC 1.7062 -0.7374 -0.2126\nN 0.5340 -1.5671 -0.3503\nC 0.3231 1.3600 0.0274\nC -0.8123 0.4553 0.0817\nC -0.6967 -0.9322 -0.0662\nN -2.1886 0.6990 0.2783\nC -2.8512 -0.5205 0.2532\nN -1.9537 -1.5188 0.0426\nC 0.6568 -3.0274 -0.1675\nO 2.8136 -1.2558 -0.1693\nO 0.2849 2.5744 0.1591\nC -2.8096 2.0031 0.5032\nC 2.8301 1.5004 -0.1968\nH -3.9271 -0.6787 0.3762\nH 1.4823 -3.4046 -0.7865\nH -0.2708 -3.5204 -0.4868\nH 0.8567 -3.2990 0.8788\nH -2.4123 2.7478 -0.2017\nH -2.6042 2.3621 1.5221\nH -3.8973 1.9344 0.3695\nH 3.5959 1.0333 -0.8314\nH 3.2249 1.5791 0.8255\nH 2.6431 2.5130 -0.5793" }
-    ];
-    const SYM = ["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"];
-    const METALS = new Set(["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"]);
-    const STYLES = ["Stick", "Ball & Stick"];
-    const LABELS = ["Off", "Atom", "Index"];
-
-    // Viewer & State
-    const viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
-    if(viewer.setFog) viewer.setFog(0.4, 1);
-    
-    let mols = [], current = -1, labelMode = 0, styleMode = 0;
-
-    // Events
-    $("fileBtn").onclick = () => $("fileInput").click();
-    $("fileInput").onchange = (e) => {
-      if(!e.target.files[0]) return;
-      const r = new FileReader();
-      r.onload = ({target}) => {
-        const parsed = parseXYZ(target.result);
-        if(parsed.length) { mols = parsed; sortMols(); buildList(); }
-      };
-      r.readAsText(e.target.files[0]);
+    /**
+     * Configuration & Constants
+     */
+    const Config = {
+      CSS: {
+        N: '#3050F8', F: '#00008b', Metal: '#FF8C00'
+      },
+      Elements: {
+        Sym: ["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"],
+        Metals: new Set(["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"])
+      },
+      Modes: {
+        Styles: ["Stick", "Ball & Stick"],
+        Labels: ["Off", "Atom", "Index"]
+      },
+      Defaults: [
+        { name: "Water", xyz: "3\nWater\nO 0.000000 0.000000 0.000000\nH 0.758602 0.000000 0.504284\nH 0.758602 0.000000 -0.504284" },
+        { name: "Methane", xyz: "5\nMethane\nC 0.000000 0.000000 0.000000\nH 0.629118 0.629118 0.629118\nH -0.629118 -0.629118 0.629118\nH 0.629118 -0.629118 -0.629118\nH -0.629118 0.629118 -0.629118" },
+        { name: "Benzene", xyz: "12\nBenzene\nC -1.2131 -0.6884 0.0000\nC -1.2028 0.7064 0.0001\nC -0.0103 -1.3948 0.0000\nC 0.0104 1.3948 -0.0001\nC 1.2028 -0.7063 0.0000\nC 1.2131 0.6884 0.0000\nH -2.1577 -1.2244 0.0000\nH -2.1393 1.2564 0.0001\nH -0.0184 -2.4809 -0.0001\nH 0.0184 2.4808 -0.0002\nH 2.1394 -1.2563 0.0001\nH 2.1577 1.2245 0.0001" },
+        { name: "Caffeine", xyz: "24\nCaffeine\nN 1.5808 0.7027 -0.2279\nC 1.7062 -0.7374 -0.2126\nN 0.5340 -1.5671 -0.3503\nC 0.3231 1.3600 0.0274\nC -0.8123 0.4553 0.0817\nC -0.6967 -0.9322 -0.0662\nN -2.1886 0.6990 0.2783\nC -2.8512 -0.5205 0.2532\nN -1.9537 -1.5188 0.0426\nC 0.6568 -3.0274 -0.1675\nO 2.8136 -1.2558 -0.1693\nO 0.2849 2.5744 0.1591\nC -2.8096 2.0031 0.5032\nC 2.8301 1.5004 -0.1968\nH -3.9271 -0.6787 0.3762\nH 1.4823 -3.4046 -0.7865\nH -0.2708 -3.5204 -0.4868\nH 0.8567 -3.2990 0.8788\nH -2.4123 2.7478 -0.2017\nH -2.6042 2.3621 1.5221\nH -3.8973 1.9344 0.3695\nH 3.5959 1.0333 -0.8314\nH 3.2249 1.5791 0.8255\nH 2.6431 2.5130 -0.5793" }
+      ]
     };
 
-    $("styleBtn").onclick = () => {
-      styleMode = (styleMode + 1) % 2;
-      $("styleTxt").textContent = STYLES[styleMode];
-      if(current !== -1) showMol(current);
-    };
+    /**
+     * Data Logic: Parsing & Molecule Structure
+     */
+    class XYZParser {
+      static parse(text) {
+        const lines = text.replace(/\r/g, "").split("\n");
+        const molecules = [];
+        let i = 0, count = 0;
+        const detailsRegex = /^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)/i;
 
-    $("labelBtn").onclick = () => {
-      labelMode = (labelMode + 1) % 3;
-      $("labelTxt").textContent = LABELS[labelMode];
-      $("labelBtn").classList.toggle("active-mode", labelMode !== 0);
-      if(current !== -1) showMol(current);
-    };
+        while(i < lines.length) {
+          const lineTrim = lines[i]?.trim();
+          if(!/^\d+$/.test(lineTrim)) { i++; continue; }
+          
+          const atomCount = +lineTrim;
+          const header = (lines[i+1] || "").trim();
+          let mol = { 
+            header, 
+            displayName: header || `Molecule ${++count}`, 
+            atoms: [], 
+            xyzBlock: "",
+            details: null,
+            error: null 
+          };
 
-    // Logic
-    function parseXYZ(txt) {
-      const lines = txt.replace(/\r/g, "").split("\n");
-      const out = [];
-      let i = 0, count = 0;
-      const rx = /^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)/i;
+          try {
+            if (atomCount <= 0 || i + 2 + atomCount > lines.length) throw new Error("Incomplete data block");
 
-      while(i < lines.length) {
-        if(!/^\d+$/.test(lines[i]?.trim())) { i++; continue; }
-        const start = i, n = +lines[i].trim();
-        const header = (lines[i+1]||"").trim();
-        let obj = { header, displayName: header || `Molecule ${++count}`, atoms: [], error: false };
+            const rawXYZ = [];
+            for (let j = 0; j < atomCount; j++) {
+              const parts = lines[i + 2 + j].trim().split(/\s+/);
+              if (parts.length < 4) throw new Error("Malformed atom line");
+              
+              const rawEl = parts[0];
+              const el = /^\d+$/.test(rawEl) ? Config.Elements.Sym[+rawEl] || "X" : rawEl;
+              
+              mol.atoms.push({ elem: el, x: +parts[1], y: +parts[2], z: +parts[3] });
+              rawXYZ.push(`${el} ${parts[1]} ${parts[2]} ${parts[3]}`);
+            }
+
+            // Extract RSI-specific energy details
+            const match = header.match(detailsRegex);
+            if (match) {
+              mol.details = { name: match[1].trim(), ehf: +match[2], e0k: +match[3], imag: +match[4] };
+              mol.displayName = mol.details.name;
+            }
+            mol.xyzBlock = `${atomCount}\n${header}\n${rawXYZ.join("\n")}\n`;
+            i += atomCount + 2;
+
+          } catch (e) {
+            mol.error = e.message;
+            i += 1; // Try to recover on next line
+          }
+          molecules.push(mol);
+        }
+        return molecules;
+      }
+    }
+
+    /**
+     * Renderer: Wraps 3Dmol.js interactions
+     */
+    class MolRenderer {
+      constructor(containerId) {
+        this.viewer = $3Dmol.createViewer(containerId, { backgroundColor: "white" });
+        if(this.viewer.setFog) this.viewer.setFog(0.4, 1);
         
-        try {
-          if(n <= 0 || i + 2 + n > lines.length) throw new Error("Incomplete block");
-          const xyzArr = [];
-          for(let j=0; j<n; j++) {
-            const p = lines[i+2+j].trim().split(/\s+/);
-            if(p.length<4) throw new Error("Malformed line");
-            let el = /^\d+$/.test(p[0]) ? SYM[+p[0]]||"X" : p[0];
-            obj.atoms.push({ elem: el, x: +p[1], y: +p[2], z: +p[3] });
-            xyzArr.push(`${el} ${p[1]} ${p[2]} ${p[3]}`);
-          }
-          const m = header.match(rx);
-          if(m) {
-            obj.details = { name: m[1].trim(), ehf: +m[2], e0k: +m[3], imag: +m[4] };
-            obj.displayName = obj.details.name;
-          }
-          obj.xyz = `${n}\n${header}\n${xyzArr.join("\n")}\n`;
-          i += n + 2;
-        } catch(e) {
-          obj.error = true; obj.errorMsg = e.message;
-          i = start + 1;
-        }
-        out.push(obj);
+        this.model = null;
+        this.styleMode = 0; // 0: Stick, 1: Ball&Stick
+        this.labelMode = 0; // 0: Off, 1: Atom, 2: Index
+        
+        // Handle resizing
+        window.addEventListener('resize', () => this.viewer.resize());
       }
-      return out;
-    }
 
-    function sortMols() {
-      mols.sort((a,b) => (a.details?.e0k ?? 9e5) - (b.details?.e0k ?? 9e5));
-    }
-
-    function buildList() {
-      const list = $("molList");
-      list.innerHTML = "";
-      let first = -1;
-      mols.forEach((m, i) => {
-        const btn = document.createElement("button");
-        btn.className = "mol-item";
-        btn.title = m.error ? m.errorMsg : m.displayName;
-        const icon = m.error ? `<span class="material-symbols-rounded mol-idx" style="color:var(--error)">warning</span>` : `<span class="mol-idx">${i+1}.</span>`;
-        btn.innerHTML = `${icon} <span class="mol-name">${m.displayName.replace(/\.log$/, '')}</span>`;
-        if(!m.error) {
-          btn.onclick = () => showMol(i);
-          if(first === -1) first = i;
-        }
-        list.appendChild(btn);
-      });
-      if(first !== -1) showMol(first);
-    }
-
-    function showMol(idx) {
-      if(!mols[idx] || mols[idx].error) return;
-      current = idx;
-      [...$("molList").children].forEach((b,i) => b.classList.toggle("active", i===idx));
-      
-      viewer.clear(); // Clears models and labels
-      const m = mols[idx];
-      const mdl = viewer.addModel(m.xyz, "xyz");
-      
-      const stick = { radius: 0.12 };
-      mdl.setStyle({}, styleMode === 0 ? { stick } : { stick, sphere: { scale: 0.23 } });
-      if(styleMode === 1) mdl.setStyle({ elem: "H" }, { stick, sphere: { scale: 0.15 } });
-
-      const setC = (sel, c) => mdl.setStyle(sel, styleMode === 0 ? {stick:{...stick, color:c}} : {stick:{...stick, color:c}, sphere:{scale:0.23, color:c}});
-      setC({elem:"N"}, css("--chem-n"));
-      setC({elem:"F"}, css("--chem-f"));
-      METALS.forEach(e => setC({elem:e}, css("--chem-metal")));
-
-      viewer.zoomTo();
-      viewer.render();
-
-      if(labelMode) {
-        mdl.selectedAtoms({}).forEach((a,i) => viewer.addLabel(labelMode===2 ? String(i+1) : a.elem, {
-            position: {x:a.x, y:a.y, z:a.z}, fontSize:12, fontColor:"#000", backgroundColor:"#fff", backgroundOpacity:0.7, inFront:true, borderThickness:0
-        }));
-        viewer.render();
+      load(xyzData) {
+        this.viewer.clear();
+        this.model = this.viewer.addModel(xyzData, "xyz");
+        this.applyStyle();
+        this.applyLabels();
+        this.viewer.zoomTo();
+        this.viewer.render();
       }
-      updateInfo(m);
+
+      setStyle(modeIndex) {
+        this.styleMode = modeIndex;
+        if(this.model) {
+          this.applyStyle();
+          this.viewer.render();
+        }
+      }
+
+      setLabelMode(modeIndex) {
+        this.labelMode = modeIndex;
+        if(this.model) {
+          this.viewer.removeAllLabels(); // Optimized cleanup
+          this.applyLabels();
+          this.viewer.render();
+        }
+      }
+
+      applyStyle() {
+        if(!this.model) return;
+        const stick = { radius: 0.12 };
+        const sphere = { scale: 0.23 };
+        const hSphere = { scale: 0.15 };
+
+        // Base Style
+        if (this.styleMode === 0) {
+          this.model.setStyle({}, { stick }); 
+        } else {
+          this.model.setStyle({}, { stick, sphere });
+          this.model.setStyle({ elem: "H" }, { stick, sphere: hSphere });
+        }
+
+        // Coloring Overrides
+        const setC = (sel, c) => {
+          const s = this.styleMode === 0 ? { stick: { ...stick, color: c } } : { stick: { ...stick, color: c }, sphere: { ...sphere, color: c } };
+          this.model.setStyle(sel, s);
+        };
+
+        setC({ elem: "N" }, Config.CSS.N);
+        setC({ elem: "F" }, Config.CSS.F);
+        Config.Elements.Metals.forEach(e => setC({ elem: e }, Config.CSS.Metal));
+      }
+
+      applyLabels() {
+        if (!this.model || this.labelMode === 0) return;
+        
+        const props = { fontSize: 12, fontColor: "#000", backgroundColor: "#fff", backgroundOpacity: 0.7, inFront: true, borderThickness: 0 };
+        const atoms = this.model.selectedAtoms({});
+        
+        atoms.forEach((a, i) => {
+          const txt = this.labelMode === 2 ? String(i + 1) : a.elem;
+          this.viewer.addLabel(txt, { ...props, position: { x: a.x, y: a.y, z: a.z } });
+        });
+      }
     }
 
-    function updateInfo(m) {
-      const fLbl = $("formulaLabel"), dLbl = $("detailsLabel");
-      if(!m) { fLbl.style.display = dLbl.style.display = "none"; return; }
+    /**
+     * Interface: Handles DOM manipulations and events
+     */
+    class UIManager {
+      constructor(callbacks) {
+        this.cb = callbacks;
+        this.dom = {
+          fileBtn: document.getElementById("fileBtn"),
+          fileInput: document.getElementById("fileInput"),
+          molList: document.getElementById("molList"),
+          styleBtn: document.getElementById("styleBtn"),
+          styleTxt: document.getElementById("styleTxt"),
+          labelBtn: document.getElementById("labelBtn"),
+          labelTxt: document.getElementById("labelTxt"),
+          pills: {
+            formula: document.getElementById("formulaLabel"),
+            details: document.getElementById("detailsLabel")
+          }
+        };
 
-      const cnt = {};
-      m.atoms.forEach(a => cnt[a.elem] = (cnt[a.elem]||0)+1);
-      const txt = Object.keys(cnt).sort((a,b) => a==='C'?-1:b==='C'?1:a==='H'?1:b==='H'?-1:a.localeCompare(b))
-        .map(k => k + (cnt[k]>1 ? `<sub>${cnt[k]}</sub>` : "")).join("");
-      
-      fLbl.innerHTML = txt; fLbl.style.display = "flex";
+        this.attachEvents();
+      }
 
-      if(m.isDefault) {
-        dLbl.className = "chip chip-warning";
-        dLbl.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px; margin-right:6px">info</span> Viewing Default Data`;
-        dLbl.style.display = "flex";
-      } else if(m.details) {
-        dLbl.className = "chip chip-details";
-        dLbl.innerHTML = `<span style="opacity:0.7">E(HF):</span>&nbsp;${m.details.ehf.toFixed(2)}&nbsp;|&nbsp;<span style="opacity:0.7">E(0K):</span>&nbsp;${m.details.e0k.toFixed(2)}&nbsp;|&nbsp;<span style="opacity:0.7">Imag:</span>&nbsp;${m.details.imag}`;
-        dLbl.style.display = "flex";
-      } else { dLbl.style.display = "none"; }
+      attachEvents() {
+        this.dom.fileBtn.onclick = () => this.dom.fileInput.click();
+        
+        this.dom.fileInput.onchange = (e) => {
+          if (e.target.files[0]) this.cb.onFileLoad(e.target.files[0]);
+        };
+
+        this.dom.styleBtn.onclick = () => this.cb.onToggleStyle();
+        this.dom.labelBtn.onclick = () => this.cb.onToggleLabel();
+      }
+
+      renderList(molecules, activeIndex) {
+        this.dom.molList.innerHTML = "";
+        molecules.forEach((m, i) => {
+          const btn = document.createElement("button");
+          btn.className = `mol-item ${i === activeIndex ? 'active' : ''}`;
+          
+          const icon = m.error 
+            ? `<span class="material-symbols-rounded mol-idx" style="color:var(--error)">warning</span>`
+            : `<span class="mol-idx">${i + 1}.</span>`;
+            
+          btn.innerHTML = `${icon} <span class="mol-name">${m.displayName.replace(/\.log$/, '')}</span>`;
+          btn.title = m.error || m.displayName;
+          
+          if (!m.error) btn.onclick = () => this.cb.onSelectMol(i);
+          this.dom.molList.appendChild(btn);
+        });
+      }
+
+      updateControls(styleIdx, labelIdx) {
+        this.dom.styleTxt.textContent = Config.Modes.Styles[styleIdx];
+        this.dom.labelTxt.textContent = Config.Modes.Labels[labelIdx];
+        this.dom.labelBtn.classList.toggle("active-mode", labelIdx !== 0);
+      }
+
+      updatePills(mol) {
+        const { formula, details } = this.dom.pills;
+        if (!mol) {
+          formula.style.display = details.style.display = "none";
+          return;
+        }
+
+        // Formula Calculation
+        const counts = {};
+        mol.atoms.forEach(a => counts[a.elem] = (counts[a.elem] || 0) + 1);
+        const sortedKeys = Object.keys(counts).sort((a,b) => a==='C'?-1:b==='C'?1:a==='H'?1:b==='H'?-1:a.localeCompare(b));
+        
+        formula.innerHTML = sortedKeys.map(k => `${k}${counts[k] > 1 ? `<sub>${counts[k]}</sub>` : ''}`).join("");
+        formula.style.display = "flex";
+
+        // Details Logic
+        if (mol.isDefault) {
+          details.className = "chip chip-warning";
+          details.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px; margin-right:6px">info</span> Viewing Default Data`;
+          details.style.display = "flex";
+        } else if (mol.details) {
+          details.className = "chip chip-details";
+          details.innerHTML = `
+            <span style="opacity:0.7">E(HF):</span>&nbsp;${mol.details.ehf.toFixed(2)}&nbsp;|&nbsp;
+            <span style="opacity:0.7">E(0K):</span>&nbsp;${mol.details.e0k.toFixed(2)}&nbsp;|&nbsp;
+            <span style="opacity:0.7">Imag:</span>&nbsp;${mol.details.imag}
+          `;
+          details.style.display = "flex";
+        } else {
+          details.style.display = "none";
+        }
+      }
     }
 
-    // Init
-    window.onresize = () => viewer.resize();
-    mols = DEFAULT_MOLS.map(d => { const p = parseXYZ(d.xyz)[0]; p.displayName = d.name; p.isDefault = true; return p; });
-    buildList();
+    /**
+     * Application: State & Orchestration
+     */
+    class App {
+      constructor() {
+        this.renderer = new MolRenderer("viewer");
+        this.molecules = [];
+        this.state = {
+          currentIdx: -1,
+          styleMode: 0,
+          labelMode: 0
+        };
+
+        // Initialize UI with callback bindings
+        this.ui = new UIManager({
+          onFileLoad: (file) => this.handleFile(file),
+          onSelectMol: (idx) => this.selectMolecule(idx),
+          onToggleStyle: () => this.cycleStyle(),
+          onToggleLabel: () => this.cycleLabel()
+        });
+
+        // Load Defaults
+        this.loadDefaults();
+      }
+
+      loadDefaults() {
+        const parsed = Config.Defaults.map(d => {
+          const p = XYZParser.parse(d.xyz)[0];
+          p.displayName = d.name;
+          p.isDefault = true;
+          return p;
+        });
+        this.updateMolecules(parsed);
+      }
+
+      handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const parsed = XYZParser.parse(e.target.result);
+          if (parsed.length) this.updateMolecules(parsed);
+        };
+        reader.readAsText(file);
+      }
+
+      updateMolecules(newList) {
+        this.molecules = newList.sort((a, b) => (a.details?.e0k ?? 9e5) - (b.details?.e0k ?? 9e5));
+        const firstValid = this.molecules.findIndex(m => !m.error);
+        if (firstValid !== -1) this.selectMolecule(firstValid);
+        else this.ui.renderList(this.molecules, -1);
+      }
+
+      selectMolecule(idx) {
+        if (!this.molecules[idx] || this.molecules[idx].error) return;
+        
+        this.state.currentIdx = idx;
+        const mol = this.molecules[idx];
+        
+        this.renderer.load(mol.xyzBlock);
+        this.ui.renderList(this.molecules, idx);
+        this.ui.updatePills(mol);
+      }
+
+      cycleStyle() {
+        this.state.styleMode = (this.state.styleMode + 1) % 2;
+        this.renderer.setStyle(this.state.styleMode);
+        this.ui.updateControls(this.state.styleMode, this.state.labelMode);
+      }
+
+      cycleLabel() {
+        this.state.labelMode = (this.state.labelMode + 1) % 3;
+        this.renderer.setLabelMode(this.state.labelMode);
+        this.ui.updateControls(this.state.styleMode, this.state.labelMode);
+      }
+    }
+
+    // Launch
+    window.onload = () => new App();
 
   </script>
 </body>
