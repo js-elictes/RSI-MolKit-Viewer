@@ -233,7 +233,7 @@
         btn.className = "mol-item";
         btn.title = m.error ? m.errorMsg : m.displayName;
         const icon = m.error ? `<span class="material-symbols-rounded mol-idx" style="color:var(--error)">warning</span>` : `<span class="mol-idx">${i+1}.</span>`;
-        btn.innerHTML = `${icon} <span class="mol-name">${m.displayName}</span>`;
+        btn.innerHTML = `${icon} <span class="mol-name">${m.displayName.replace(/\.log$/, '')}</span>`;
         if(!m.error) {
           btn.onclick = () => showMol(i);
           if(first === -1) first = i;
